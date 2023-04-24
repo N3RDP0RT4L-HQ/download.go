@@ -42,4 +42,3 @@ func main() {
 
     bar.FinishPrint("Download has been completed.")
 }
-
