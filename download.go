@@ -3,10 +3,12 @@ package main
 import (
     "fmt"
     "io"
+    "net"
     "net/http"
     "os"
+    "strings"
 
-    pb "gopkg.in/cheggaaa/pb.v1"
+    pb "github.com/cheggaaa/pb/v3"
 )
 
 func main() {
@@ -17,6 +19,19 @@ func main() {
 
     url := os.Args[1]
     path := os.Args[2]
+
+    // DNS Resolver
+    addrs, err := net.LookupHost(strings.Split(url, "/")[2])
+    if err != nil {
+        fmt.Println("DNS lookup failed:", err.Error())
+        return
+    }
+
+    // Select the first IP from the list
+    ip := addrs[0]
+
+    // Replace hostname with IP in the URL
+    url = strings.Replace(url, strings.Split(url, "/")[2], ip, 1)
 
     resp, err := http.Get(url)
     if err != nil {
@@ -32,13 +47,14 @@ func main() {
     }
     defer out.Close()
 
-    bar := pb.StartNew(int(resp.ContentLength))
+    bar := pb.Full.Start64(resp.ContentLength)
 
-    _, err = io.Copy(out, io.TeeReader(resp.Body, bar))
+    _, err = io.Copy(out, bar.NewProxyReader(resp.Body))
     if err != nil {
         fmt.Println("Error downloading file:", err)
         return
     }
 
-    bar.FinishPrint("Download has been completed.")
+    bar.Finish()
+    fmt.Println("Download has been completed.")
 }
